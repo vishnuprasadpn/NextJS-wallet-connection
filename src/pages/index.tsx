@@ -7,7 +7,8 @@ import {
   type BaseError,
   useSendTransaction, 
   useWaitForTransactionReceipt,
-  useWriteContract
+  useWriteContract,
+  useReadContract
 } from 'wagmi' 
 import { parseEther } from 'viem';
 import { abi } from './abi';
@@ -21,8 +22,17 @@ const Home: NextPage = () => {
   const { data: hashTransaction, error: transactionError, isPending: isTxPending, sendTransaction } = useSendTransaction();
   const { data: hashContract, error: contractError , isPending: isContractPending, writeContract } = useWriteContract();
 
+  const [tokenID, setTokenID] = useState<number>(0);
+
   const { isLoading: isTransactionConfirming, isSuccess: isTransactionConfirmed } = useWaitForTransactionReceipt({ hash: hashTransaction });
   const { isLoading: isContractConfirming, isSuccess: isContractConfirmed } = useWaitForTransactionReceipt({ hash: hashContract });
+
+  const { data: tokenURI } = useReadContract({
+    address: '0xFBA3912Ca04dd458c843e2EE08967fC04f3579c2',
+    abi,
+    functionName: 'tokenUri',
+    args: [tokenID],
+  });
 
   function handleSubmitTranfer(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -31,14 +41,12 @@ const Home: NextPage = () => {
 
   function handleSubmitMint(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()
-    const formData = new FormData(event.target as HTMLFormElement) 
-    const tokenId = formData.get('tokenId') as string 
-    writeContract({
-      address: '0xFBA3912Ca04dd458c843e2EE08967fC04f3579c2',
-      abi,
-      functionName: 'mint',
-      args: [Number(tokenId)],
-    })
+    // writeContract({
+    //   address: '0xFBA3912Ca04dd458c843e2EE08967fC04f3579c2',
+    //   abi,
+    //   functionName: 'mint',
+    //   args: [mintRecipient, tokenUri],
+    // })
   }
 
   return (
@@ -155,6 +163,76 @@ const Home: NextPage = () => {
               )}
               
             </form>
+          </div>
+
+          <div className={styles.formSection}>
+            <h3>Get Token Info</h3>
+            <div className={styles.form}>
+              <div className={styles.formGroup}>
+                <label htmlFor="tokenIdInput" className={styles.label}>Token ID</label>
+                <input 
+                  type="number" 
+                  id="tokenIdInput" 
+                  value={tokenID} 
+                  onChange={(e) => setTokenID(parseInt(e.target.value) || 0)}
+                  className={styles.input}
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Token URI</label>
+                <div className={styles.tokenUriDisplay}>
+                  {tokenURI ? (
+                    <div className={styles.tokenUriContent}>
+                      <strong>URI:</strong> {tokenURI}
+                      <button 
+                        onClick={() => navigator.clipboard.writeText(tokenURI)}
+                        className={styles.copyButton}
+                        title="Copy to clipboard"
+                      >
+                        📋  
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={styles.noData}>
+                      Enter a token ID to view the URI
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Token Metadata</label>
+                <div className={styles.tokenMetadata}>
+                  {tokenURI ? (
+                    <div className={styles.metadataContent}>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(tokenURI);
+                            const metadata = await response.json();
+                            console.log('Token Metadata:', metadata);
+                            alert(`Token Metadata:\n${JSON.stringify(metadata, null, 2)}`);
+                          } catch (error) {
+                            console.error('Error fetching metadata:', error);
+                            alert('Error fetching metadata. Check console for details.');
+                          }
+                        }}
+                        className={styles.metadataButton}
+                      >
+                        Fetch Metadata
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={styles.noData}>
+                      Enter a token ID first
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
